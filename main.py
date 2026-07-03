@@ -10,7 +10,7 @@ app = FastAPI()
 #DB dependnce
 def get_db():
     db = sesslocal()
-    try : 
+    try :
         yield db
     finally:
         db.close()
@@ -35,37 +35,48 @@ def create_blog(blog : schemas.BlogCreate , db : Session = Depends(get_db)):
     return new_blog
 
 #Get ALL Blogs
-@app.get("/blogs")
+@app.get("/blogs",response_model=list[schemas.BlogResponse])
 def show_blogs(db : Session = Depends(get_db)):
     blog = db.query(models.Blog).all()
     return blog
 
 #Get Blogs By ID
-@app.get("/blogs/{blog_id}")
+@app.get("/blogs/{blog_id}",response_model=schemas.BlogResponse)
 def show_blog(blog_id : int , db : Session = Depends(get_db)):
+    if not blog_id:
+        raise HTTPException(
+            status_code=404,
+            detail="Blog not found"
+        )
     return db.get(models.Blog,blog_id)
 
 #Update blogs
-@app.put("/blogs/{blog_id}")
-def update_blog(title:str, content:str , blog_id : int , db : Session = Depends(get_db)):
+@app.put("/blogs/{blog_id}",response_model=schemas.BlogResponse)
+def update_blog(title:str, content:str ,blog:schemas.BlogCreate, blog_id : int , db : Session = Depends(get_db)):
     new_blog = db.query(models.Blog).filter(models.Blog.id == blog_id).first()
 
     if not new_blog:
-        return {"message": "Blog not found"}
+        raise HTTPException(
+            status_code=404,
+            detail="Blog not found"
+        )
     
-    new_blog.title = title
-    new_blog.content = content
+    new_blog.title = blog.title
+    new_blog.content = blog.content
 
     db.commit()
     db.refresh(new_blog)
     return new_blog
 
-@app.delete("/blogs/{blog_id}")
+@app.delete("/blogs/{blog_id}",response_model=schemas.BlogResponse)
 def delete_blog(blog_id : int , db : Session = Depends(get_db)):
     blog = db.get(models.Blog,blog_id)
 
     if not blog:
-        return {"message": "Blog not found"}
+        raise HTTPException(
+            status_code=404,
+            detail="Blog not found"
+        )
     
     db.delete(blog)
     db.commit()
